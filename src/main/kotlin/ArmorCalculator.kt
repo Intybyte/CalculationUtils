@@ -80,8 +80,7 @@ class ArmorCalculator(private var magicValue: Double = 0.04) {
     }
 
     private fun getArmorDamageReduced(vararg equip: ItemStack?) : Double {
-        val totalReduction = equip.sumOf { getArmorPieceReduction(it) }
-        return totalReduction
+        return equip.sumOf { getArmorPieceReduction(it) }
     }
 
     fun getArmorPieceReduction(armorPiece: ItemStack?): Double {
@@ -98,16 +97,13 @@ class ArmorCalculator(private var magicValue: Double = 0.04) {
 
         val inv = entity.inventory
 
-        val boots = inv.boots
-        val helmet = inv.helmet
-        val chest = inv.chestplate
-        val pants = inv.leggings
+        val reduction = getItemEnchantProtection(enchantment, inv.helmet, inv.chestplate, inv.leggings, inv.boots)
 
-        var reduction = 0.0
-        reduction += getItemEnchantProtection(boots, enchantment)
-        reduction += getItemEnchantProtection(helmet, enchantment)
-        reduction += getItemEnchantProtection(chest, enchantment)
-        reduction += getItemEnchantProtection(pants, enchantment)
+        return capItemEnchantProtection(reduction)
+    }
+
+    private fun capItemEnchantProtection(startReduction : Double) : Double {
+        var reduction = startReduction
         //cap it to 25
         if (reduction > 25) reduction = 25.0
 
@@ -119,6 +115,10 @@ class ArmorCalculator(private var magicValue: Double = 0.04) {
 
         //1 point is 4%
         return reduction*4/100
+    }
+
+    private fun getItemEnchantProtection(enchantment: Enchantment, vararg equip: ItemStack?) : Double {
+        return equip.sumOf { getItemEnchantProtection(it, enchantment) }
     }
 
     fun getItemEnchantProtection(item: ItemStack?, special: Enchantment): Double {

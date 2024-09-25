@@ -4,6 +4,7 @@ import org.bukkit.Material
 import org.bukkit.Material.*
 import org.bukkit.enchantments.Enchantment
 import org.bukkit.entity.HumanEntity
+import org.bukkit.entity.LivingEntity
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.Damageable
 import java.util.*
@@ -64,13 +65,22 @@ class ArmorCalculator(private var magicValue: Double = 0.04) {
         magicValue = magick
     }
 
-    fun getArmorDamageReduced(entity: HumanEntity?): Double {
+    fun getArmorDamageReduced(entity: LivingEntity?): Double {
         entity ?: return 0.0
 
-        val inv = entity.inventory
-        if (inv.isEmpty) return 0.0
+        var totalReduction: Double = when(entity) {
+            is HumanEntity -> {
+                val inv = entity.inventory
+                if (inv.isEmpty) return 0.0
+                getArmorDamageReduced(inv.helmet, inv.chestplate, inv.leggings, inv.boots)
+            }
 
-        var totalReduction = getArmorDamageReduced(inv.helmet, inv.chestplate, inv.leggings, inv.boots)
+            else -> {
+                val inv = entity.equipment
+                inv ?: return 0.0
+                getArmorDamageReduced(inv.helmet, inv.chestplate, inv.leggings, inv.boots)
+            }
+        }
 
         // 100% protection, this would make you immune
         if(totalReduction > 1)
@@ -90,14 +100,24 @@ class ArmorCalculator(private var magicValue: Double = 0.04) {
         return armorReductionMap.getOrDefault(material, 0.0)
     }
 
-    fun getPlayerEnchantProtection(entity: HumanEntity?, enchantment: Enchantment) : Double {
+    fun getEntityEnchantProtection(entity: LivingEntity?, enchantment: Enchantment) : Double {
         //http://www.minecraftwiki.net/wiki/Armor#Armor_enchantment_effect_calculation
 
         entity ?: return 0.0
 
-        val inv = entity.inventory
+        val reduction: Double = when(entity) {
+            is HumanEntity -> {
+                val inv = entity.inventory
+                if(inv.isEmpty) return 0.0
+                getItemEnchantProtection(enchantment, inv.helmet, inv.chestplate, inv.leggings, inv.boots)
+            }
 
-        val reduction = getItemEnchantProtection(enchantment, inv.helmet, inv.chestplate, inv.leggings, inv.boots)
+            else -> {
+                val inv = entity.equipment
+                inv ?: return 0.0
+                getItemEnchantProtection(enchantment, inv.helmet, inv.chestplate, inv.leggings, inv.boots)
+            }
+        }
 
         return capItemEnchantProtection(reduction)
     }
@@ -139,12 +159,12 @@ class ArmorCalculator(private var magicValue: Double = 0.04) {
 
     fun getDirectHitReduction(human: HumanEntity, armorPiercing: Double) : Double {
         val overallPiercing = armorPiercing + 1
-        return (1 - getArmorDamageReduced(human) / overallPiercing) * (1 - getPlayerEnchantProtection(human, Enchantment.PROJECTILE_PROTECTION) / overallPiercing)
+        return (1 - getArmorDamageReduced(human) / overallPiercing) * (1 - getEntityEnchantProtection(human, Enchantment.PROJECTILE_PROTECTION) / overallPiercing)
     }
 
     fun getExplosionHitReduction(human: HumanEntity, armorPiercing: Double) : Double {
         val overallPiercing = armorPiercing + 1
-        return (1 - getArmorDamageReduced(human) / overallPiercing) * (1 - getPlayerEnchantProtection(human, Enchantment.BLAST_PROTECTION))
+        return (1 - getArmorDamageReduced(human) / overallPiercing) * (1 - getEntityEnchantProtection(human, Enchantment.BLAST_PROTECTION))
     }
 
     /**
@@ -155,16 +175,13 @@ class ArmorCalculator(private var magicValue: Double = 0.04) {
         val inv = entity.inventory
 
         for(item in inv.armorContents) {
-            if (item == null) {
-                continue
-            }
+            item ?: continue
 
             val lvl = item.getEnchantmentLevel(Enchantment.UNBREAKING)
             //chance of breaking in 0-1
-            val breakingChance = 0.6+0.4/(lvl+1)
+            val breakingChance = 0.6 + 0.4/(lvl+1)
 
-            if (random.nextDouble() < breakingChance)
-            {
+            if (random.nextDouble() < breakingChance) {
                 val damageableMeta = item.itemMeta as Damageable
                 damageableMeta.damage += 1
             }

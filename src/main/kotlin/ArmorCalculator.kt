@@ -70,17 +70,17 @@ class ArmorCalculator(private var magicValue: Double = 0.04) {
         val inv = entity.inventory
         if (inv.isEmpty) return 0.0
 
-        var totalReduction = 0.0
-
-        totalReduction += getArmorPieceReduction(inv.helmet)
-        totalReduction += getArmorPieceReduction(inv.boots)
-        totalReduction += getArmorPieceReduction(inv.leggings)
-        totalReduction += getArmorPieceReduction(inv.chestplate)
+        var totalReduction = getArmorDamageReduced(inv.helmet, inv.chestplate, inv.leggings, inv.boots)
 
         // 100% protection, this would make you immune
         if(totalReduction > 1)
             totalReduction = 1.0
 
+        return totalReduction
+    }
+
+    private fun getArmorDamageReduced(vararg equip: ItemStack?) : Double {
+        val totalReduction = equip.sumOf { getArmorPieceReduction(it) }
         return totalReduction
     }
 

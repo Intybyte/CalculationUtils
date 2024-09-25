@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>me.vaan.utillib</groupId>
-    <artifactId>playerutils</artifactId>
+    <artifactId>calculationutils</artifactId>
     <version>1.0.0</version>
 
     <properties>

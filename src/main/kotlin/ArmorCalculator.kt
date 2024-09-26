@@ -72,13 +72,13 @@ class ArmorCalculator(private var magicValue: Double = 0.04) {
             is HumanEntity -> {
                 val inv = entity.inventory
                 if (inv.isEmpty) return 0.0
-                getArmorDamageReduced(inv.helmet, inv.chestplate, inv.leggings, inv.boots)
+                getArmorDamageReduced(*inv.armorContents)
             }
 
             else -> {
                 val inv = entity.equipment
                 inv ?: return 0.0
-                getArmorDamageReduced(inv.helmet, inv.chestplate, inv.leggings, inv.boots)
+                getArmorDamageReduced(*inv.armorContents)
             }
         }
 
@@ -109,13 +109,13 @@ class ArmorCalculator(private var magicValue: Double = 0.04) {
             is HumanEntity -> {
                 val inv = entity.inventory
                 if(inv.isEmpty) return 0.0
-                getItemEnchantProtection(enchantment, inv.helmet, inv.chestplate, inv.leggings, inv.boots)
+                getItemEnchantProtection(enchantment, *inv.armorContents)
             }
 
             else -> {
                 val inv = entity.equipment
                 inv ?: return 0.0
-                getItemEnchantProtection(enchantment, inv.helmet, inv.chestplate, inv.leggings, inv.boots)
+                getItemEnchantProtection(enchantment, *inv.armorContents)
             }
         }
 
@@ -157,29 +157,38 @@ class ArmorCalculator(private var magicValue: Double = 0.04) {
         return reduction
     }
 
-    fun getDirectHitReduction(human: HumanEntity, armorPiercing: Double) : Double {
+    fun getDirectHitReduction(livingEntity: LivingEntity, armorPiercing: Double) : Double {
         val overallPiercing = armorPiercing + 1
-        return (1 - getArmorDamageReduced(human) / overallPiercing) * (1 - getEntityEnchantProtection(human, Enchantment.PROJECTILE_PROTECTION) / overallPiercing)
+        return (1 - getArmorDamageReduced(livingEntity) / overallPiercing) * (1 - getEntityEnchantProtection(livingEntity, Enchantment.PROJECTILE_PROTECTION) / overallPiercing)
     }
 
-    fun getExplosionHitReduction(human: HumanEntity, armorPiercing: Double) : Double {
+    fun getExplosionHitReduction(livingEntity: LivingEntity, armorPiercing: Double) : Double {
         val overallPiercing = armorPiercing + 1
-        return (1 - getArmorDamageReduced(human) / overallPiercing) * (1 - getEntityEnchantProtection(human, Enchantment.BLAST_PROTECTION))
+        return (1 - getArmorDamageReduced(livingEntity) / overallPiercing) * (1 - getEntityEnchantProtection(livingEntity, Enchantment.BLAST_PROTECTION))
     }
 
     /**
      * reduces the durability of the player's armor
      * @param entity - the affected human player
      */
-    fun reduceArmorDurability(entity: HumanEntity) {
-        val inv = entity.inventory
+    fun reduceArmorDurability(entity: LivingEntity) {
+        if (entity is HumanEntity) {
+            val inv = entity.inventory
+            reduceArmorDurability(*inv.armorContents)
+        } else {
+            val inv = entity.equipment
+            inv ?: return
+            reduceArmorDurability(*inv.armorContents)
+        }
+    }
 
-        for(item in inv.armorContents) {
+    private fun reduceArmorDurability(vararg equip: ItemStack?) {
+        for (item in equip) {
             item ?: continue
 
             val lvl = item.getEnchantmentLevel(Enchantment.UNBREAKING)
             //chance of breaking in 0-1
-            val breakingChance = 0.6 + 0.4/(lvl+1)
+            val breakingChance = 0.6 + 0.4 / (lvl + 1)
 
             if (random.nextDouble() < breakingChance) {
                 val damageableMeta = item.itemMeta as Damageable
